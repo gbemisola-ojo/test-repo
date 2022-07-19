@@ -13,3 +13,5 @@ cba_k8s_server
 
 # jenkins server
 cba_jenkins_server
+
+# please note: any new changes to cloudboosta servers above should be listed above
