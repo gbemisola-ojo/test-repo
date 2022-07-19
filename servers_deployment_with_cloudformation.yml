@@ -1,0 +1,448 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Template to Create a Jenkins server using cloudformation
+
+Parameters:
+
+  AMI:
+    Type: String
+    Default: ami-0d37e07bd4ff37148
+    Description: Amazon Linux 2 AMI
+
+  InstanceTypeParameter:
+    Type: String
+    Default: t2.micro
+    Description: Jenkins instance type is t2.micro
+
+  Key:
+    Type: 'AWS::EC2::KeyPair::KeyName'
+    Default: Jenkins-keypair
+    Description: The key used to access the instance.
+
+  VPCBlock:
+    Type: String
+    Default: 10.0.0.0/16
+    Description: The CIDR Block for the VPC
+    
+  PrivateSubnet01Block:
+    Type: String
+    Default: 10.0.2.0/24
+    Description: The CIDR Block for the private subnet 01
+    
+  PublicSubnet01Block:
+    Type: String
+    Default: 10.0.1.0/24
+    Description: The CIDR Block for the public subnet 01
+    
+ 
+Resources:
+
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties: 
+      CidrBlock: !Ref VPCBlock
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      InstanceTenancy: default
+      Tags: 
+        - Key: Name
+          Value:  CBA VPC
+
+  PrivateSubnet01:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: eu-west-2b
+      CidrBlock: !Ref PrivateSubnet01Block
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: Private Subnet
+
+  PublicSubnet01:
+    Type: AWS::EC2::Subnet
+    Properties:
+      MapPublicIpOnLaunch: true
+      AvailabilityZone: eu-west-2a
+      CidrBlock: !Ref PublicSubnet01Block
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: Public Subnet
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: PublicRouteTable
+
+  PrivateRouteTable01:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: PrivateRouteTable
+
+  PublicRoute:
+    DependsOn: VPCGatewayAttachment
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0 
+      GatewayId: !Ref IGW
+
+  PublicSubnet01RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet01
+      RouteTableId: !Ref PublicRouteTable
+
+  PrivateSubnet01RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet01
+      RouteTableId: !Ref PrivateRouteTable01
+
+ 
+  Instance02:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AMI
+      InstanceType: !Ref InstanceTypeParameter
+      KeyName: !Ref Key
+      SubnetId: !Ref PublicSubnet01
+      SecurityGroupIds: 
+        - Ref: InstanceSecurityGroup
+      BlockDeviceMappings: 
+        - DeviceName: "/dev/xvda"
+          Ebs: 
+            VolumeType: "gp3"
+            Iops: "3000"
+            DeleteOnTermination: "true"
+            VolumeSize: "8" 
+      UserData:
+         Fn::Base64:
+          !Sub |
+            #!/bin/bash
+            sudo yum update –y
+            sudo yum install java-1.8.0-openjdk-devel -y
+            curl --silent --location http://pkg.jenkins-ci.org/redhat-stable/jenkins.repo | sudo tee /etc/yum.repos.d/jenkins.repo
+            sudo rpm --import https://pkg.jenkins.io/redhat/jenkins.io.key
+            sudo systemctl daemon-reload
+            sudo amazon-linux-extras install epel -y
+            sudo yum install jenkins -y
+            sudo systemctl start jenkins
+            sudo systemctl status jenkins
+            sudo systemctl enable jenkins
+            sudo cat /var/lib/jenkins/secrets/initialAdminPassword
+      Tags: 
+        - Key: Name
+          Value:  cba_academy_jenkins_server
+
+  Instance03:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AMI
+      InstanceType: !Ref InstanceTypeParameter
+      KeyName: Ansible_Server_keypair
+      SubnetId: !Ref PublicSubnet01
+      SecurityGroupIds: 
+        - Ref: InstanceSecurityGroupAnsible
+      BlockDeviceMappings: 
+        - DeviceName: "/dev/xvda"
+          Ebs: 
+            VolumeType: "gp3"
+            Iops: "3000"
+            DeleteOnTermination: "true"
+            VolumeSize: "8" 
+      UserData:
+         Fn::Base64:
+          !Sub |
+            #!/bin/bash
+            sudo yum update –y
+            sudo amazon-linux-extras list | grep ansible2
+            sudo amazon-linux-extras enable ansible2
+            sudo yum install -y ansible
+      Tags: 
+        - Key: Name
+          Value:  cba_ansible_server
+
+  Instance04:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AMI
+      InstanceType: !Ref InstanceTypeParameter
+      KeyName: Ansible_Server_keypair
+      SubnetId: !Ref PublicSubnet01
+      SecurityGroupIds: 
+        - Ref: InstanceSecurityGroupAnsible
+      BlockDeviceMappings: 
+        - DeviceName: "/dev/xvda"
+          Ebs: 
+            VolumeType: "gp3"
+            Iops: "3000"
+            DeleteOnTermination: "true"
+            VolumeSize: "8" 
+      UserData:
+         Fn::Base64:
+          !Sub |
+            #!/bin/bash
+            sudo yum update –y
+            sudo amazon-linux-extras list | grep ansible2
+            sudo amazon-linux-extras enable ansible2
+            sudo yum install -y ansible
+      Tags: 
+        - Key: Name
+          Value:  cba_academy_ansible_server
+
+  Instance05:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AMI
+      InstanceType: !Ref InstanceTypeParameter
+      KeyName: Ansible_Server_keypair
+      SubnetId: !Ref PublicSubnet01
+      SecurityGroupIds: 
+        - Ref: InstanceSecurityGroupAnsible
+      BlockDeviceMappings: 
+        - DeviceName: "/dev/xvda"
+          Ebs: 
+            VolumeType: "gp3"
+            Iops: "3000"
+            DeleteOnTermination: "true"
+            VolumeSize: "8" 
+      Tags: 
+        - Key: Name
+          Value:  cba_academy_ansible_host1
+
+  Instance06:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AMI
+      InstanceType: !Ref InstanceTypeParameter
+      KeyName: Ansible_Server_keypair
+      SubnetId: !Ref PublicSubnet01
+      SecurityGroupIds: 
+        - Ref: InstanceSecurityGroupAnsible
+      BlockDeviceMappings: 
+        - DeviceName: "/dev/xvda"
+          Ebs: 
+            VolumeType: "gp3"
+            Iops: "3000"
+            DeleteOnTermination: "true"
+            VolumeSize: "8" 
+      Tags: 
+        - Key: Name
+          Value:  cba_academy_ansible_host2
+
+  Instance07:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AMI
+      InstanceType: !Ref InstanceTypeParameter
+      KeyName: Ansible_Server_keypair
+      SubnetId: !Ref PublicSubnet01
+      SecurityGroupIds: 
+        - Ref: InstanceSecurityGroupAnsible
+      BlockDeviceMappings: 
+        - DeviceName: "/dev/xvda"
+          Ebs: 
+            VolumeType: "gp3"
+            Iops: "3000"
+            DeleteOnTermination: "true"
+            VolumeSize: "8" 
+      Tags: 
+        - Key: Name
+          Value:  cba_ansible_host1
+
+  Instance08:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AMI
+      InstanceType: !Ref InstanceTypeParameter
+      KeyName: Ansible_Server_keypair
+      SubnetId: !Ref PublicSubnet01
+      SecurityGroupIds: 
+        - Ref: InstanceSecurityGroupAnsible
+      BlockDeviceMappings: 
+        - DeviceName: "/dev/xvda"
+          Ebs: 
+            VolumeType: "gp3"
+            Iops: "3000"
+            DeleteOnTermination: "true"
+            VolumeSize: "8" 
+      Tags: 
+        - Key: Name
+          Value:  cba_ansible_host2
+
+
+  Instance09:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AMI
+      InstanceType: !Ref InstanceTypeParameter
+      KeyName: !Ref Key
+      SubnetId: !Ref PublicSubnet01
+      SecurityGroupIds: 
+        - Ref: InstanceSecurityGroup
+      BlockDeviceMappings: 
+        - DeviceName: "/dev/xvda"
+          Ebs: 
+            VolumeType: "gp3"
+            Iops: "3000"
+            DeleteOnTermination: "true"
+            VolumeSize: "8" 
+      UserData:
+         Fn::Base64:
+          !Sub |
+            #!/bin/bash
+            sudo yum update –y
+            sudo yum install java-1.8.0-openjdk-devel -y
+            curl --silent --location http://pkg.jenkins-ci.org/redhat-stable/jenkins.repo | sudo tee /etc/yum.repos.d/jenkins.repo
+            sudo rpm --import https://pkg.jenkins.io/redhat/jenkins.io.key
+            sudo systemctl daemon-reload
+            sudo amazon-linux-extras install epel -y
+            sudo yum install jenkins -y
+            sudo systemctl start jenkins
+            sudo systemctl status jenkins
+            sudo systemctl enable jenkins
+            sudo cat /var/lib/jenkins/secrets/initialAdminPassword
+            sudo yum install git -y
+            sudo wget https://mirrors.estointernet.in/apache/maven/maven-3/3.6.3/binaries/apache-maven-3.6.3-bin.tar.gz
+      Tags: 
+        - Key: Name
+          Value:  CBA_Jenkins_Server_1
+
+cd
+  Instance10:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AMI
+      InstanceType: !Ref InstanceTypeParameter
+      KeyName: K8s_Server_keypair
+      SubnetId: !Ref PublicSubnet01
+      SecurityGroupIds: 
+        - Ref: InstanceSecurityGroupK8s
+      BlockDeviceMappings: 
+        - DeviceName: "/dev/xvda"
+          Ebs: 
+            VolumeType: "gp3"
+            Iops: "3000"
+            DeleteOnTermination: "true"
+            VolumeSize: "8" 
+      UserData:
+         Fn::Base64:
+          !Sub |
+            #!/bin/bash
+            sudo curl -LO https://storage.googleapis.com/kubernetes-release/release/`curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt`/bin/linux/amd64/kubectl
+            sudo curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+            sudo curl -LO "https://dl.k8s.io/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl.sha256"
+            echo "$(cat kubectl.sha256)  kubectl" | sha256sum --check
+            sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+      Tags: 
+        - Key: Name
+          Value:  cba_k8s_server
+
+
+  InstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: "Jenkins-SG"
+      GroupDescription: "Security Group"
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: '8080'
+          ToPort: '8080'
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: '80'
+          ToPort: '80'
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: '443'
+          ToPort: '443'
+          CidrIp: 0.0.0.0/0
+
+  InstanceSecurityGroupAnsible:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: "ansible-sg"
+      GroupDescription: "Security Group"
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: '80'
+          ToPort: '80'
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: '443'
+          ToPort: '443'
+          CidrIp: 0.0.0.0/0
+
+  InstanceSecurityGroupK8s:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: "k8s-sg"
+      GroupDescription: "Security Group"
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: '80'
+          ToPort: '80'
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: '443'
+          ToPort: '443'
+          CidrIp: 0.0.0.0/0
+
+
+  NetworkAcl:
+    Type: 'AWS::EC2::NetworkAcl'
+    Properties:
+      VpcId: !Ref VPC
+
+  IGW: 
+    Type: AWS::EC2::InternetGateway
+    Properties: 
+      Tags:
+        - Key: Name
+          Value: Project IGW
+
+  VPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties: 
+      InternetGatewayId: !Ref IGW
+      VpcId: !Ref VPC
+  
+Outputs:
+  PublicSubnet01Id:
+    Description: Public Subnet 01 ID in the VPC
+    Value: !Ref PublicSubnet01
+    Export: 
+      Name: !Sub "${AWS::StackName}-PublicSubnet01Id"
+
+  PrivateSubne01tId:
+    Description: Private Subnet 01 ID in the VPC
+    Value: !Ref PrivateSubnet01
+    Export: 
+      Name: !Sub "${AWS::StackName}-PrivateSubnetId"
+
+  VpcId:
+    Description: The VPC Id
+    Value: !Ref VPC
+    Export: 
+      Name: !Sub "${AWS::StackName}-VPCID"
