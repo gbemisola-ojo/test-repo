@@ -1,10 +1,10 @@
 variable "aws_region" {
-  default = "eu-west-2"
+  default = "us-east-1"
 }
 
 variable "availability_zone" {
   type    = string
-  default = "eu-west-2b"
+  default = "us-east-1b"
 }
 
 variable "vpc_cidr_block" {
@@ -21,8 +21,8 @@ variable "servers_public_subnet_cidr_block" {
 
 variable "instance_type" {
   description = "Instance type"
-  type        = string
-  default     = "t2.micro"
+  type        = list(string)
+  default     = ["t2.micro", "t3.medium"]
 }
 
 variable "aws_key_pair" {

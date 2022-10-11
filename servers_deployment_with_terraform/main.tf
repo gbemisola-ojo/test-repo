@@ -106,7 +106,7 @@ resource "aws_security_group" "servers_sg" {
 resource "aws_instance" "cba_jenkins_server" {
   ami                    = data.aws_ssm_parameter.instance_ami.value
   subnet_id              = aws_subnet.servers_public_subnet.id
-  instance_type          = var.instance_type
+  instance_type          = var.instance_type[0]
   vpc_security_group_ids = [aws_security_group.servers_sg.id]
   key_name               = var.aws_key_pair[0]
   user_data              = fileexists("install_jenkins.sh") ? file("install_jenkins.sh") : null
@@ -116,23 +116,23 @@ resource "aws_instance" "cba_jenkins_server" {
 }
 
 # Creating an EC2 instance called cba_student_jenkins_server
-resource "aws_instance" "cba_student_jenkins_server" {
-  ami                    = data.aws_ssm_parameter.instance_ami.value
-  subnet_id              = aws_subnet.servers_public_subnet.id
-  instance_type          = var.instance_type
-  vpc_security_group_ids = [aws_security_group.servers_sg.id]
-  key_name               = var.aws_key_pair[0]
-  user_data              = fileexists("install_jenkins.sh") ? file("install_jenkins.sh") : null
-  tags = {
-    Name = "cba_student_jenkins_server"
-  }
-}
+#  resource "aws_instance" "cba_student_jenkins_server" {
+#    ami                    = data.aws_ssm_parameter.instance_ami.value
+#    subnet_id              = aws_subnet.servers_public_subnet.id
+#    instance_type          = var.instance_type
+#    vpc_security_group_ids = [aws_security_group.servers_sg.id]
+#    key_name               = var.aws_key_pair[0]
+#    user_data              = fileexists("install_jenkins.sh") ? file("install_jenkins.sh") : null
+#    tags = {
+#      Name = "cba_student_jenkins_server"
+#   }
+#  }
 
 # Creating an EC2 instance called cba_ansible_controller
 resource "aws_instance" "cba_ansible_controller" {
   ami                    = data.aws_ssm_parameter.instance_ami.value
   subnet_id              = aws_subnet.servers_public_subnet.id
-  instance_type          = var.instance_type
+  instance_type          = var.instance_type[0]
   vpc_security_group_ids = [aws_security_group.servers_sg.id]
   key_name               = var.aws_key_pair[1]
   user_data              = fileexists("install_ansible.sh") ? file("install_ansible.sh") : null
@@ -145,7 +145,7 @@ resource "aws_instance" "cba_ansible_controller" {
 resource "aws_instance" "cba_ansible_slave" {
   ami                    = data.aws_ssm_parameter.instance_ami.value
   subnet_id              = aws_subnet.servers_public_subnet.id
-  instance_type          = var.instance_type
+  instance_type          = var.instance_type[0]
   vpc_security_group_ids = [aws_security_group.servers_sg.id]
   key_name               = var.aws_key_pair[1]
   #user_data              = fileexists("install_ansible.sh") ? file("install_ansible.sh") : null
@@ -158,7 +158,7 @@ resource "aws_instance" "cba_ansible_slave" {
 resource "aws_instance" "cba_K8s_cluster_01" {
   ami                    = data.aws_ssm_parameter.instance_ami.value
   subnet_id              = aws_subnet.servers_public_subnet.id
-  instance_type          = var.instance_type
+  instance_type          = var.instance_type[1]
   vpc_security_group_ids = [aws_security_group.servers_sg.id]
   key_name               = var.aws_key_pair[2]
   user_data              = fileexists("install_k8s.sh") ? file("install_k8s.sh") : null
@@ -167,18 +167,6 @@ resource "aws_instance" "cba_K8s_cluster_01" {
   }
 }
 
-# Creating an EC2 instance called cba_K8s_cluster
-resource "aws_instance" "cba_K8s_cluster" {
-  ami                    = data.aws_ssm_parameter.instance_ami.value
-  subnet_id              = aws_subnet.servers_public_subnet.id
-  instance_type          = var.instance_type
-  vpc_security_group_ids = [aws_security_group.servers_sg.id]
-  key_name               = var.aws_key_pair[2]
-  user_data              = fileexists("install_k8s.sh") ? file("install_k8s.sh") : null
-  tags = {
-    Name = "cba_k8s_cluster"
-  }
-}
 
 # Creating an Elastic IP called jenkins_eip
 resource "aws_eip" "cba_jenkins_eip" {
@@ -189,11 +177,3 @@ resource "aws_eip" "cba_jenkins_eip" {
   }
 }
 
-# Creating an Elastic IP called jenkins_eip
-resource "aws_eip" "cba_student_jenkins_server_eip" {
-  instance = aws_instance.cba_student_jenkins_server.id
-  vpc      = true
-  tags = {
-    Name = "cba_student_jenkins_server_eip"
-  }
-}
