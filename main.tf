@@ -115,6 +115,19 @@ resource "aws_instance" "cba_jenkins_server" {
   }
 }
 
+
+resource "aws_instance" "cba_jenkins_server01" {
+  ami                    = data.aws_ssm_parameter.instance_ami.value
+  subnet_id              = aws_subnet.servers_public_subnet.id
+  instance_type          = var.instance_type[0]
+  vpc_security_group_ids = [aws_security_group.servers_sg.id]
+  key_name               = var.aws_key_pair[0]
+  user_data              = fileexists("install_jenkins.sh") ? file("install_jenkins.sh") : null
+  tags = {
+    Name = "cba_jenkins_server01"
+  }
+}
+
 # Creating an EC2 instance called cba_student_jenkins_server
 #  resource "aws_instance" "cba_student_jenkins_server" {
 #    ami                    = data.aws_ssm_parameter.instance_ami.value
